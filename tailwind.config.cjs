@@ -4,7 +4,15 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx}'
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        'corp-navy': '#071D4C',
+        'shrimp-red': '#CF301D'
+      },
+      fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+      }
+    },
   },
   plugins: [],
 }
