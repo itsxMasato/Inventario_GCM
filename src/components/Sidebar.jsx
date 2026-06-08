@@ -13,7 +13,7 @@ export default function Sidebar(){
   return (
     <aside className="w-64 bg-corp-navy text-white flex flex-col flex-shrink-0">
       <div className="p-6 border-b border-white/10">
-        <h1 className="text-xl font-bold tracking-tight">Inventario</h1>
+        <h1 className="text-xl font-bold tracking-tight">GCM</h1>
       </div>
       <nav className="flex-grow p-4 space-y-2">
         <NavItem to="/"> 
