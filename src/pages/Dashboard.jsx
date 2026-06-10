@@ -13,7 +13,7 @@ const chartData = [
 export default function Dashboard(){
   const [activeFilter, setActiveFilter] = useState('hoy')
   const max = useMemo(() => Math.max(...chartData.flatMap(d => [d.e, d.s])), [])
-  const maxH = 180
+  const maxH = 220
 
   const filters = [
     { id: 'hoy', label: 'Hoy' },
@@ -23,21 +23,18 @@ export default function Dashboard(){
   ]
 
   return (
-    <>
-      {/* Time Range Filters */}
-      <div className="flex" data-purpose="time-filters">
-        <div className="inline-flex rounded-md shadow-sm" role="group">
+    <div className="mx-auto w-full max-w-7xl space-y-8">
+      <div className="flex justify-between">
+        <div className="inline-flex rounded-full bg-white p-1 shadow-sm border border-slate-200" role="group" data-purpose="time-filters">
           {filters.map((filter, idx) => (
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id)}
-              className={`px-6 py-2 text-sm font-medium transition-colors ${
+              className={`px-5 py-2 text-sm font-semibold transition-colors ${
                 activeFilter === filter.id
-                  ? 'text-white bg-corp-navy border border-corp-navy'
-                  : 'text-gray-700 bg-white border border-gray-200 hover:bg-gray-100'
-              } ${idx === 0 ? 'rounded-l-lg' : ''} ${idx === filters.length - 1 ? 'rounded-r-lg' : ''} ${
-                idx > 0 && activeFilter !== filter.id ? 'border-l' : ''
-              } focus:z-10 focus:ring-2 focus:ring-corp-navy`}
+                  ? 'text-white bg-corp-navy'
+                  : 'text-slate-600 bg-white hover:bg-slate-50'
+              } ${idx === 0 ? 'rounded-l-full' : ''} ${idx === filters.length - 1 ? 'rounded-r-full' : ''}`}
               type="button"
             >
               {filter.label}
@@ -46,92 +43,120 @@ export default function Dashboard(){
         </div>
       </div>
 
-      {/* Summary Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" data-purpose="summary-cards">
-        {/* Total de Productos */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total de Productos</p>
-          <div className="mt-4 flex items-baseline">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" data-purpose="summary-cards">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div className="rounded-2xl bg-slate-100 p-3 text-corp-navy">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7h18" />
+                <path d="M3 12h18" />
+                <path d="M3 17h18" />
+              </svg>
+            </div>
+            <p className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">Total de Productos</p>
+          </div>
+          <div className="mt-5">
             <span className="text-4xl font-extrabold text-corp-navy">1,248</span>
           </div>
         </div>
 
-        {/* Total de Stock */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total de Stock</p>
-          <div className="mt-4 flex items-baseline">
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div className="rounded-2xl bg-slate-100 p-3 text-corp-navy">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 6h16v12H4z" />
+                <path d="M8 12h8" />
+              </svg>
+            </div>
+            <p className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">Total de Stock</p>
+          </div>
+          <div className="mt-5">
             <span className="text-4xl font-extrabold text-corp-navy">42,890</span>
           </div>
         </div>
 
-        {/* Total Stock Bajo (Red Accent) */}
-        <div className="bg-white p-6 rounded-xl border-2 border-shrimp-red/20 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-1 bg-shrimp-red text-white text-[10px] font-bold px-2 rounded-bl-lg uppercase">Crítico</div>
-          <p className="text-sm font-medium text-shrimp-red uppercase tracking-wider">Total Stock Bajo</p>
-          <div className="mt-4 flex items-baseline">
-            <span className="text-4xl font-extrabold text-shrimp-red">12</span>
+        <div className="bg-white p-6 rounded-3xl border border-red-200 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div className="rounded-2xl bg-red-100 p-3 text-rose-600">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 9v6" />
+                <path d="M9 12h6" />
+              </svg>
+            </div>
+            <p className="text-xs font-semibold tracking-[0.24em] uppercase text-rose-600">Stock bajo</p>
+          </div>
+          <div className="mt-5">
+            <span className="text-4xl font-extrabold text-rose-600">12</span>
           </div>
         </div>
 
-        {/* Total Sin Stock */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Sin Stock</p>
-          <div className="mt-4 flex items-baseline">
-            <span className="text-4xl font-extrabold text-gray-900">3</span>
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div className="rounded-2xl bg-slate-100 p-3 text-corp-navy">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v18" />
+                <path d="M5 15h14" />
+              </svg>
+            </div>
+            <p className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">Sin Stock</p>
           </div>
-        </div>
-      </div>
-
-      {/* BEGIN: Chart Section */}
-      <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm" data-purpose="movement-chart">
-        <h3 className="text-xl font-bold text-corp-navy mb-10">Movimiento de los últimos 7 días</h3>
-        
-        {/* Bar Chart Visualization */}
-        <div className="w-full flex items-end justify-around space-x-4 border-b border-l border-gray-300 pb-2 pl-2 relative" style={{minHeight: '300px'}}>
-          {/* Grid Lines (Simple Visual) */}
-          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none -z-0 opacity-50">
-            <div className="border-t border-gray-100 w-full h-0"></div>
-            <div className="border-t border-gray-100 w-full h-0"></div>
-            <div className="border-t border-gray-100 w-full h-0"></div>
-            <div className="border-t border-gray-100 w-full h-0"></div>
-          </div>
-
-          {chartData.map(({ label, e, s }) => {
-            const eH = Math.round((e / max) * maxH)
-            const sH = Math.round((s / max) * maxH)
-            return (
-              <div key={label} className="flex-1 flex flex-col items-center">
-                <div className="w-full max-w-[80px] flex items-end space-x-1">
-                  <div 
-                    className="bg-gray-300 flex-1 transition-all hover:bg-gray-400 cursor-pointer" 
-                    style={{height: `${eH}px`}} 
-                    title={`Entradas: ${e}`}
-                  ></div>
-                  <div 
-                    className="bg-corp-navy flex-1 transition-all hover:opacity-80 cursor-pointer" 
-                    style={{height: `${sH}px`}} 
-                    title={`Salidas: ${s}`}
-                  ></div>
-                </div>
-                <span className="mt-4 text-xs font-semibold text-gray-500 uppercase">{label}</span>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Legend */}
-        <div className="mt-8 flex justify-center space-x-8 text-sm">
-          <div className="flex items-center">
-            <span className="w-3 h-3 bg-gray-300 mr-2 rounded-sm"></span>
-            <span className="text-gray-600 font-medium">Entradas</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 bg-corp-navy mr-2 rounded-sm"></span>
-            <span className="text-gray-600 font-medium">Salidas</span>
+          <div className="mt-5">
+            <span className="text-4xl font-extrabold text-corp-navy">3</span>
           </div>
         </div>
       </div>
-      {/* END: Chart Section */}
-    </>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm" data-purpose="movement-chart">
+        <div className="flex flex-col gap-6">
+          <div>
+            <h3 className="text-2xl font-semibold text-corp-navy">Movimiento de los últimos 7 días</h3>
+          </div>
+
+          <div className="relative border-b border-slate-200 pb-8" style={{ minHeight: '340px' }}>
+            <div className="absolute inset-x-0 top-10 flex h-56 flex-col justify-between text-slate-200">
+              <div className="border-t border-slate-200"></div>
+              <div className="border-t border-slate-200"></div>
+              <div className="border-t border-slate-200"></div>
+              <div className="border-t border-slate-200"></div>
+            </div>
+
+            <div className="relative z-10 grid h-full gap-4 pt-3 sm:grid-cols-7">
+              {chartData.map(({ label, e, s }) => {
+                const eH = Math.round((e / max) * maxH)
+                const sH = Math.round((s / max) * maxH)
+                return (
+                  <div key={label} className="flex flex-col items-center justify-end gap-3">
+                    <div className="flex h-full w-full max-w-18 flex-col justify-end gap-2">
+                      <div className="h-full flex flex-col justify-end gap-2 rounded-3xl bg-slate-50 p-2">
+                        <div className="h-full flex items-end gap-2">
+                          <span className="block h-px w-full"></span>
+                          <span className="block h-px w-full"></span>
+                        </div>
+                        <div className="flex h-full items-end justify-between gap-2">
+                          <div className="w-1/2 rounded-full bg-slate-300 transition-all duration-300" style={{ height: `${eH}px` }} title={`Entradas: ${e}`} />
+                          <div className="w-1/2 rounded-full bg-corp-navy transition-all duration-300" style={{ height: `${sH}px` }} title={`Salidas: ${s}`} />
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-8 pt-4 text-sm text-slate-600">
+            <div className="flex items-center gap-2">
+              <span className="h-px w-3 rounded-full bg-slate-300" />
+              <span className="font-medium">Entradas</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-px w-3 rounded-full bg-corp-navy" />
+              <span className="font-medium">Salidas</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }

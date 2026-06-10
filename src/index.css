@@ -1,11 +1,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --corp-navy: #071D4C;
   --shrimp-red: #CF301D;
+}
+
+@layer components {
+  .bg-corp-navy {
+    @apply bg-[#071D4C];
+  }
+  .text-corp-navy {
+    @apply text-[#071D4C];
+  }
+  .border-corp-navy {
+    @apply border-[#071D4C];
+  }
+  .bg-shrimp-red {
+    @apply bg-[#CF301D];
+  }
+  .text-shrimp-red {
+    @apply text-[#CF301D];
+  }
+  .border-shrimp-red {
+    @apply border-[#CF301D];
+  }
+}
+
+.sidebar-item-active {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-left: 4px solid #CF301D;
 }
 
 html,
