@@ -47,6 +47,8 @@ router.post('/login', async (req, res) => {
     const payload = { id: user.id, username: user.username, roleId: user.roleId }
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '8h' })
 
+    console.log(`[AUTH] Login exitoso para ${username}, roleName=${user.roleName}, permisos=${rolePermissions.length}`)
+
     res.json({
       user: {
         id: user.id,
@@ -56,7 +58,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         roleId: user.roleId,
         roleName: user.roleName,
-        rolePermissions,
+        rolePermissions: rolePermissions,
+        roles: user.roleId ? [user.roleId] : [],
       },
       token,
     })
