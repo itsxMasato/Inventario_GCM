@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useLocation, matchPath } from 'react-router-dom'
 import { useSidebar } from '../contexts/SidebarContext'
+import NotificationCenter from './NotificationCenter'
+import data from '../lib/data'
 
 const routeTitles = [
   { path: '/movimientos/:id', title: 'Historial del Producto' },
@@ -27,9 +29,23 @@ export default function Topbar() {
     const today = new Date()
     return today.toISOString().slice(0, 10)
   })
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const [movements, setMovements] = useState([])
   const title = useRouteTitle()
   const { toggle } = useSidebar()
-  
+
+  useEffect(() => {
+    async function loadMovements() {
+      try {
+        // Simulación: puedes reemplazar esto con una llamada real a la API
+        const stored = localStorage.getItem('movimientos') || '[]'
+        setMovements(JSON.parse(stored))
+      } catch (err) {
+        console.error('Error cargando movimientos:', err)
+      }
+    }
+    loadMovements()
+  }, [])
 
   return (
     <header className="bg-white border-b border-slate-200 px-8 py-5 flex items-center justify-between shadow-sm" data-purpose="top-navigation">
@@ -56,14 +72,20 @@ export default function Topbar() {
             </svg>
           </div>
         </div>
-        <button className="relative inline-flex items-center justify-center rounded-2xl p-2 text-slate-500 hover:text-shrimp-red transition-colors" data-purpose="notifications" aria-label="notifications">
+        <button
+          onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+          className="relative inline-flex items-center justify-center rounded-2xl p-2 text-slate-500 hover:text-shrimp-red transition-colors"
+          aria-label="Notification center"
+        >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
           </svg>
-          <span className="absolute top-2 right-2 w-2 h-2 bg-shrimp-red rounded-full border-2 border-white"></span>
+          {movements.length > 0 && (
+            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-shrimp-red rounded-full border-2 border-white animate-pulse"></span>
+          )}
         </button>
-        
       </div>
+      <NotificationCenter isOpen={isNotificationOpen} onClose={() => setIsNotificationOpen(false)} movements={movements} />
     </header>
   )
 }

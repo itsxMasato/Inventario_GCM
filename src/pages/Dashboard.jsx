@@ -1,18 +1,60 @@
-import React, { useState, useMemo } from 'react'
-
-const chartData = [
-  { label: 'Lun', e: 120, s: 140 },
-  { label: 'Mar', e: 180, s: 160 },
-  { label: 'Mié', e: 90,  s: 200 },
-  { label: 'Jue', e: 210, s: 190 },
-  { label: 'Vie', e: 150, s: 110 },
-  { label: 'Sáb', e: 60,  s: 40  },
-  { label: 'Dom', e: 30,  s: 20  },
-]
+import React, { useState, useMemo, useEffect } from 'react'
 
 export default function Dashboard(){
   const [activeFilter, setActiveFilter] = useState('hoy')
-  const max = useMemo(() => Math.max(...chartData.flatMap(d => [d.e, d.s])), [])
+  const [products, setProducts] = useState([])
+  const [movements, setMovements] = useState([])
+
+  // Cargar datos del localStorage (futuro: API)
+  useEffect(() => {
+    try {
+      const productsData = JSON.parse(localStorage.getItem('demo_products_v1') || '[]')
+      const movementsData = JSON.parse(localStorage.getItem('movimientos') || '[]')
+      setProducts(productsData)
+      setMovements(movementsData)
+    } catch (err) {
+      console.error('Error cargando datos:', err)
+    }
+  }, [])
+
+  // Calcular estadísticas
+  const stats = useMemo(() => {
+    const totalProducts = products.length
+    const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0)
+    const lowStock = products.filter(p => p.stock > 0 && p.stock <= (p.min || 10)).length
+    const outOfStock = products.filter(p => p.stock === 0).length
+
+    return { totalProducts, totalStock, lowStock, outOfStock }
+  }, [products])
+
+  // Generar datos del gráfico basado en movimientos
+  const chartData = useMemo(() => {
+    const today = new Date()
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(d.getDate() - (6 - i))
+      return d
+    })
+
+    const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    
+    const data = last7Days.map((date, idx) => {
+      const dateStr = date.toISOString().slice(0, 10)
+      const dayMovements = movements.filter(m => {
+        const movDate = m.date || m.timestamp
+        return movDate && movDate.slice(0, 10) === dateStr
+      })
+
+      const entradas = dayMovements.filter(m => m.status === 'Entrada' || m.type === 'entrada').reduce((s, m) => s + (m.stock || m.cantidad || 0), 0)
+      const salidas = dayMovements.filter(m => m.status === 'Salida' || m.type === 'salida').reduce((s, m) => s + (m.stock || m.cantidad || 0), 0)
+
+      return { label: days[idx], e: entradas, s: salidas }
+    })
+
+    return data
+  }, [movements])
+
+  const max = useMemo(() => Math.max(...chartData.flatMap(d => [d.e, d.s]), 1), [chartData])
   const maxH = 220
 
   const filters = [
@@ -56,7 +98,7 @@ export default function Dashboard(){
             <p className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">Total de Productos</p>
           </div>
           <div className="mt-5">
-            <span className="text-4xl font-extrabold text-corp-navy">1,248</span>
+            <span className="text-4xl font-extrabold text-corp-navy">{stats.totalProducts}</span>
           </div>
         </div>
 
@@ -71,7 +113,7 @@ export default function Dashboard(){
             <p className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">Total de Stock</p>
           </div>
           <div className="mt-5">
-            <span className="text-4xl font-extrabold text-corp-navy">42,890</span>
+            <span className="text-4xl font-extrabold text-corp-navy">{stats.totalStock.toLocaleString()}</span>
           </div>
         </div>
 
@@ -86,7 +128,7 @@ export default function Dashboard(){
             <p className="text-xs font-semibold tracking-[0.24em] uppercase text-rose-600">Stock bajo</p>
           </div>
           <div className="mt-5">
-            <span className="text-4xl font-extrabold text-rose-600">12</span>
+            <span className="text-4xl font-extrabold text-rose-600">{stats.lowStock}</span>
           </div>
         </div>
 
@@ -101,7 +143,7 @@ export default function Dashboard(){
             <p className="text-xs font-semibold tracking-[0.24em] uppercase text-slate-400">Sin Stock</p>
           </div>
           <div className="mt-5">
-            <span className="text-4xl font-extrabold text-corp-navy">3</span>
+            <span className="text-4xl font-extrabold text-corp-navy">{stats.outOfStock}</span>
           </div>
         </div>
       </div>
@@ -133,8 +175,8 @@ export default function Dashboard(){
                           <span className="block h-px w-full"></span>
                         </div>
                         <div className="flex h-full items-end justify-between gap-2">
-                          <div className="w-1/2 rounded-full bg-slate-300 transition-all duration-300" style={{ height: `${eH}px` }} title={`Entradas: ${e}`} />
-                          <div className="w-1/2 rounded-full bg-corp-navy transition-all duration-300" style={{ height: `${sH}px` }} title={`Salidas: ${s}`} />
+                          <div className="w-1/2 rounded-full bg-emerald-400 transition-all duration-300 hover:bg-emerald-500 cursor-pointer" style={{ height: `${eH}px` }} title={`Entradas: ${e}`} />
+                          <div className="w-1/2 rounded-full bg-corp-navy transition-all duration-300 hover:bg-slate-900 cursor-pointer" style={{ height: `${sH}px` }} title={`Salidas: ${s}`} />
                         </div>
                       </div>
                     </div>
@@ -147,7 +189,7 @@ export default function Dashboard(){
 
           <div className="flex flex-wrap items-center justify-center gap-8 pt-4 text-sm text-slate-600">
             <div className="flex items-center gap-2">
-              <span className="h-px w-3 rounded-full bg-slate-300" />
+              <span className="h-px w-3 rounded-full bg-emerald-400" />
               <span className="font-medium">Entradas</span>
             </div>
             <div className="flex items-center gap-2">

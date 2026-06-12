@@ -6,7 +6,7 @@ const AUTH_TOKEN_KEY = 'auth_token'
 function seedDemoUsers() {
   if (localStorage.getItem(DEMO_USERS_KEY)) return
   const users = [
-    { id: 1, username: 'admin', password: 'admin123', firstName: 'Admin', lastName: 'User', email: 'admin@example.com', roles: [1], forcePasswordReset: false },
+    { id: 1, username: 'admin', password: 'admin123', firstName: 'Admin', lastName: 'User', email: 'admin@example.com', roles: [1], status: 'active', forcePasswordReset: false, createdAt: new Date().toISOString() },
   ]
   localStorage.setItem(DEMO_USERS_KEY, JSON.stringify(users))
 }

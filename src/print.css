@@ -1,0 +1,97 @@
+/* Print Styles */
+@media print {
+  body,
+  html {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  /* Ocultar elementos que no deben imprimirse */
+  button,
+  .no-print,
+  [data-purpose="top-navigation"],
+  [data-purpose="time-filters"],
+  .print-no-display {
+    display: none !important;
+  }
+
+  /* Estilos para la tabla de impresión */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+  }
+
+  thead {
+    background-color: #f3f4f6;
+    border-bottom: 2px solid #071D4C;
+  }
+
+  th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #071D4C;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid #e5e7eb;
+  }
+
+  td {
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    font-size: 13px;
+  }
+
+  /* Badges de estado */
+  .status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .status.active {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+
+  .status.inactive {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  .status.suspended {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  /* Evitar saltos de página en filas */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Margen de página */
+  @page {
+    margin: 20mm;
+  }
+
+  /* Hide sidebars and other layout elements */
+  aside,
+  nav,
+  .sidebar,
+  header {
+    display: none !important;
+  }
+
+  /* Full width for print */
+  main,
+  .main-content,
+  .content {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
