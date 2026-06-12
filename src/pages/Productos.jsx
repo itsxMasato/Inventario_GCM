@@ -1,17 +1,21 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { exportToPowerBI } from '../lib/powerbiExport'
+import { addAuditLog } from '../lib/auditLog'
+import PasswordAuthModal from '../components/PasswordAuthModal'
+import { userHasPermission } from '../lib/permissions'
+import { useNotification } from '../contexts/NotificationContext'
 
-const initialProducts = [
-  { id: 1, name: 'AirFier 5 XHD', category: 'Red', unit: 'pza', stock: 90, min: 10 },
-  { id: 2, name: 'Rocket 5 AC', category: 'Red', unit: 'pza', stock: 17, min: 10 },
-  { id: 3, name: 'Cemento', category: 'Material', unit: 'kg', stock: 0, min: 25 },
-  { id: 4, name: 'Arnes', category: 'Seguridad', unit: 'und', stock: 10, min: 10 },
-]
+const initialProducts = []
 
 export default function Productos() {
+  const notification = useNotification()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [items, setItems] = useState(initialProducts)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
+  const canCreateProducts = userHasPermission('Crear/Editar Productos')
   const [newProduct, setNewProduct] = useState({
     name: '',
     code: '',
@@ -27,6 +31,23 @@ export default function Productos() {
   })
   const [uploadedFiles, setUploadedFiles] = useState([])
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    try {
+      const storedProducts = JSON.parse(localStorage.getItem('demo_products_v1') || '[]')
+      setItems(Array.isArray(storedProducts) ? storedProducts : [])
+    } catch (err) {
+      console.error('Error cargando productos:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('demo_products_v1', JSON.stringify(items))
+    } catch (err) {
+      console.error('Error guardando productos:', err)
+    }
+  }, [items])
 
   const categoryOptions = {
     Maquinaria: ['Rodamientos', 'Motores', 'Ejes', 'Correas'],
@@ -48,8 +69,15 @@ export default function Productos() {
   }, [items, query, status])
 
   function remove(id) {
-    if (!confirm('Eliminar producto?')) return
-    setItems(i => i.filter(p => p.id !== id))
+    notification.confirm(
+      'Deshabilitar producto',
+      '¿Deseas deshabilitar este producto? El registro se mantendrá para auditoría.',
+      async () => {
+        setItems(prev => prev.map(p => p.id === id ? { ...p, status: 'inactive', updatedAt: new Date().toISOString() } : p))
+        addAuditLog('disable_product', `Producto deshabilitado: ${id}`)
+        notification.success('Producto deshabilitado', `El producto ${id} fue deshabilitado correctamente.`)
+      }
+    )
   }
 
   function edit(id) {
@@ -90,7 +118,9 @@ export default function Productos() {
         min: Number(newProduct.minStock || 0),
         subcategory: newProduct.subcategory || 'Sin subcategoría',
         location: newProduct.location || 'Sin ubicación',
-        files: uploadedFiles,
+        files: uploadedFiles.map(file => ({ name: file.name, size: file.size, type: file.type })),
+        status: 'active',
+        createdAt: new Date().toISOString(),
       },
     ])
     setNewProduct({
@@ -108,22 +138,64 @@ export default function Productos() {
     })
     setUploadedFiles([])
     setIsModalOpen(false)
+    notification.success('Producto agregado', 'Se ha guardado el producto correctamente.')
+  }
+
+  const executePowerBIExport = () => {
+    const rows = items.map(p => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      subcategory: p.subcategory,
+      unit: p.unit,
+      stock: p.stock,
+      min: p.min,
+      location: p.location,
+      status: p.status || 'active',
+      createdAt: p.createdAt || '',
+    }))
+    const meta = { company: 'Grupo Camaronero Milcien', reportType: 'Productos', generatedAt: new Date().toISOString(), totalRows: String(rows.length) }
+    const filename = `productos_powerbi_${new Date().toISOString().split('T')[0]}.xlsx`
+    exportToPowerBI({ data: rows, filename, meta })
+    addAuditLog('export_powerbi', `Exportado productos a Power BI: ${filename}`)
+    notification.success('Excel generado', `El archivo ${filename} se ha descargado correctamente.`, `PBI-${Date.now().toString().slice(-6)}`)
+  }
+
+  const handleAuthExport = () => {
+    setIsAuthModalOpen(true)
+    setPendingAction('powerbi')
+  }
+
+  const handleAuthConfirm = async () => {
+    if (pendingAction === 'powerbi') {
+      executePowerBIExport()
+    }
   }
 
   return (
-    <div>
+    <div className="max-w-6xl mx-auto space-y-6 px-4">
       <div className="flex justify-end mb-6">
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-2xl bg-corp-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14" />
-            <path d="M5 12h14" />
-          </svg>
-          Agregar Producto
-        </button>
+        {canCreateProducts && (
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-corp-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+            Agregar Producto
+          </button>
+        )}
+        {canCreateProducts && (
+          <button onClick={() => { setPendingAction('powerbi'); setIsAuthModalOpen(true) }} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7M7 7V5a5 5 0 0110 0v2" />
+            </svg>
+            Exportar a Power BI (Excel)
+          </button>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -190,20 +262,24 @@ export default function Productos() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => edit(p.id)} className="inline-flex h-9 items-center justify-center rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 hover:text-corp-navy">
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                    </button>
-                    <button onClick={() => remove(p.id)} className="inline-flex h-9 items-center justify-center rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 hover:text-rose-600">
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18" />
-                        <path d="M8 6v14" />
-                        <path d="M16 6v14" />
-                        <path d="M5 6l1-3h12l1 3" />
-                      </svg>
-                    </button>
+                    {canCreateProducts && (
+                      <>
+                        <button onClick={() => edit(p.id)} className="inline-flex h-9 items-center justify-center rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 hover:text-corp-navy">
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        <button onClick={() => remove(p.id)} className="inline-flex h-9 items-center justify-center rounded-full bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200 hover:text-rose-600">
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" />
+                            <path d="M8 6v14" />
+                            <path d="M16 6v14" />
+                            <path d="M5 6l1-3h12l1 3" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -225,6 +301,7 @@ export default function Productos() {
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-3xl bg-corp-navy text-white text-2xl">+</span>
                 <div>
                   <p className="text-sm font-medium text-slate-500 uppercase tracking-[0.18em]">Agregar Producto</p>
+              <PasswordAuthModal isOpen={isAuthModalOpen} onClose={() => { setIsAuthModalOpen(false); setPendingAction(null) }} onConfirm={handleAuthConfirm} action={pendingAction === 'powerbi' ? 'exportar a Power BI' : 'exportar'} />
                   <h1 className="text-2xl font-semibold text-corp-navy">Nuevo producto al inventario</h1>
                 </div>
               </div>

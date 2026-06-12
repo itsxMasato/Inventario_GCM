@@ -2,9 +2,19 @@ const USERS_KEY = 'demo_users_v1'
 const ROLES_KEY = 'demo_roles_v1'
 
 const defaultRoles = [
-  { id: 1, name: 'Administrador', description: 'Acceso total', permissions: ['products.read','products.write','movements.read','movements.write','users.manage','reports.export'] },
-  { id: 2, name: 'Operador', description: 'Gestión de inventario', permissions: ['products.read','products.write','movements.read','movements.write'] },
-  { id: 3, name: 'Analista', description: 'Solo lectura y reportes', permissions: ['products.read','movements.read','reports.export'] },
+  {
+    id: 1,
+    name: 'Administrador',
+    description: 'Acceso completo al sistema',
+    permissions: [
+      'Ver Productos',
+      'Crear/Editar Productos',
+      'Ver Movimientos',
+      'Crear/Editar Movimientos',
+      'Administrar Usuarios',
+      'Ver Reportes',
+    ],
+  },
 ]
 
 function useApi() {

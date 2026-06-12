@@ -1,47 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { exportToPowerBI } from '../lib/powerbiExport'
+import { addAuditLog } from '../lib/auditLog'
+import PasswordAuthModal from '../components/PasswordAuthModal'
+import { userHasPermission } from '../lib/permissions'
 import { useNavigate } from 'react-router-dom'
+import { useNotification } from '../contexts/NotificationContext'
 
 const today = new Date()
 const todayString = today.toISOString().slice(0, 10)
 
-const movimientosData = [
-  {
-    movementId: 'MOV-001',
-    id: 'CRM-001',
-    productId: 'CRM-001',
-    name: 'Motor Industrial Síncrono',
-    stock: 1,
-    status: 'En mantenimiento',
-    date: todayString,
-  },
-  {
-    movementId: 'MOV-002',
-    id: 'CRM-002',
-    productId: 'CRM-002',
-    name: 'Bobina de Cobre Reforzada',
-    stock: 1,
-    status: 'Activo',
-    date: new Date(today.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-  },
-  {
-    movementId: 'MOV-003',
-    id: 'CRM-003',
-    productId: 'CRM-003',
-    name: 'Baterías Ion-Litio 48V',
-    stock: 4,
-    status: 'Activo',
-    date: new Date(today.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-  },
-  {
-    movementId: 'MOV-004',
-    id: 'CRM-004',
-    productId: 'CRM-004',
-    name: 'Compresor de Aire Alta Presión',
-    stock: 0,
-    status: 'Fuera de stock',
-    date: new Date(today.getTime() - 12 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-  },
-]
+const movimientosData = []
 
 const statusStyles = {
   'En mantenimiento': 'bg-red-100 text-red-700',
@@ -87,7 +55,12 @@ export default function Movimientos() {
   const [customRange, setCustomRange] = useState({ from: '', to: '' })
   const [currentPage, setCurrentPage] = useState(1)
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
+  const canCreateMovements = userHasPermission('Crear/Editar Movimientos')
+  const canViewMovements = userHasPermission('Ver Movimientos')
   const [selectedProduct, setSelectedProduct] = useState(null)
+  const [products, setProducts] = useState([])
   const [movementForm, setMovementForm] = useState({
     remitente: '',
     destinatario: '',
@@ -101,6 +74,43 @@ export default function Movimientos() {
   useEffect(() => {
     setCurrentPage(1)
   }, [search, status, dateFilter, customRange])
+
+  useEffect(() => {
+    try {
+      const storedProducts = JSON.parse(localStorage.getItem('demo_products_v1') || '[]')
+      setProducts(Array.isArray(storedProducts) ? storedProducts : [])
+    } catch (err) {
+      console.error('Error cargando productos:', err)
+    }
+  }, [])
+
+  const availableProducts = useMemo(() => products.filter((product) => product.status !== 'inactive'), [products])
+
+  const handleProductSelection = (productId) => {
+    const selected = availableProducts.find((product) => String(product.id) === String(productId))
+    setSelectedProduct(selected || null)
+  }
+
+  // Cargar movimientos del localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('movimientos')
+      if (stored) {
+        setData(JSON.parse(stored))
+      }
+    } catch (err) {
+      console.error('Error cargando movimientos:', err)
+    }
+  }, [])
+
+  // Guardar movimientos en localStorage cuando cambien
+  useEffect(() => {
+    try {
+      localStorage.setItem('movimientos', JSON.stringify(data))
+    } catch (err) {
+      console.error('Error guardando movimientos:', err)
+    }
+  }, [data])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -146,13 +156,23 @@ export default function Movimientos() {
   const startRow = filteredMovimientos.length ? (currentPage - 1) * rowsPerPage + 1 : 0
   const endRow = Math.min(filteredMovimientos.length, currentPage * rowsPerPage)
 
+  const notification = useNotification()
+
   const handleDelete = (movementId) => {
-    if (!window.confirm('¿Eliminar este movimiento?')) return
-    setData((prev) => prev.filter((item) => item.movementId !== movementId))
+    notification.confirm(
+      'Anular movimiento',
+      '¿Deseas anular este movimiento? El registro se conservará para auditoría.',
+      async () => {
+        setData((prev) => prev.map((item) => (item.movementId === movementId ? { ...item, status: 'Anulado', updatedAt: new Date().toISOString() } : item)))
+        addAuditLog('cancel_movement', `Movimiento anulado: ${movementId}`)
+        notification.success('Movimiento anulado', `El movimiento ${movementId} se marcó como anulado.`)
+      }
+    )
   }
 
   const openMovementModal = (item) => {
-    setSelectedProduct(item)
+    const selected = availableProducts.find((product) => String(product.id) === String(item.productId || item.id))
+    setSelectedProduct(selected || item || null)
     setMovementForm({
       remitente: '',
       destinatario: '',
@@ -176,7 +196,7 @@ export default function Movimientos() {
   const handleSaveMovement = (event) => {
     event.preventDefault()
     if (!selectedProduct) {
-      window.alert('Selecciona un producto desde la lista antes de guardar el movimiento.')
+      notification.warning('Producto no seleccionado', 'Selecciona un producto para registrar el movimiento.')
       return
     }
 
@@ -198,6 +218,8 @@ export default function Movimientos() {
     setMovementForm({ remitente: '', destinatario: '', cantidad: '', entregadoA: '' })
     setIsMovementModalOpen(false)
     setSelectedProduct(null)
+    addAuditLog('create_movement', `Movimiento registrado: ${newMovement.movementId}`)
+    notification.success('Movimiento registrado', `El movimiento ${newMovement.movementId} se guardó correctamente.`)
   }
 
   const navigate = useNavigate()
@@ -208,7 +230,7 @@ export default function Movimientos() {
       return
     }
     if (action === 'editar') {
-      window.alert(`Editar movimiento ${item.id}`)
+      notification.info('Editar movimiento', `Función de edición para ${item.id} aún no implementada.`)
       return
     }
     if (action === 'eliminar') {
@@ -260,18 +282,51 @@ export default function Movimientos() {
   }
 
   const handleExport = () => {
-    const header = ['ID Producto', 'Nombre', 'Stock', 'Estado', 'Fecha']
-    const rows = filteredMovimientos.map((item) => [item.id, item.name, item.stock, item.status, item.date])
-    const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'movimientos.csv')
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    setIsAuthModalOpen(true)
+    setPendingAction('csv')
+  }
+
+  const executePowerBIExport = () => {
+    const rows = filteredMovimientos.map(item => ({
+      movementId: item.movementId || item.id,
+      productId: item.productId || item.id,
+      name: item.name,
+      stock: item.stock,
+      status: item.status,
+      date: item.date,
+      remitente: item.remitente || '',
+      destinatario: item.destinatario || '',
+      cantidad: item.cantidad || '',
+      entregadoA: item.entregadoA || '',
+    }))
+    const meta = { company: 'Grupo Camaronero Milcien', reportType: 'Movimientos', generatedAt: new Date().toISOString(), totalRows: String(rows.length) }
+    const filename = `movimientos_powerbi_${new Date().toISOString().split('T')[0]}.xlsx`
+    exportToPowerBI({ data: rows, filename, meta })
+    addAuditLog('export_powerbi', `Exportado movimientos a Power BI: ${filename}`)
+    notification.success('Excel generado', `El archivo ${filename} se ha descargado correctamente.`)
+  }
+
+  const handleAuthConfirm = async () => {
+    if (pendingAction === 'csv') {
+      // perform csv export
+      const header = ['ID Producto', 'Nombre', 'Stock', 'Estado', 'Fecha']
+      const rows = filteredMovimientos.map((item) => [item.id, item.name, item.stock, item.status, item.date])
+      const csv = [header, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'movimientos.csv')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      addAuditLog('export_csv', 'Exportado movimientos CSV')
+    } else if (pendingAction === 'powerbi') {
+      executePowerBIExport()
+    }
+    setIsAuthModalOpen(false)
+    setPendingAction(null)
   }
 
   const handlePageChange = (page) => {
@@ -407,15 +462,25 @@ export default function Movimientos() {
               </button>
               <button
                 type="button"
-                onClick={handleExport}
+                onClick={() => { setPendingAction('csv'); setIsAuthModalOpen(true) }}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 transition hover:bg-slate-100"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 17L12 10L5 17" />
-                  <path d="M12 10V21" />
+                  <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" />
                 </svg>
-                Exportar
+                Exportar CSV
               </button>
+              <button
+                type="button"
+                onClick={() => { setPendingAction('powerbi'); setIsAuthModalOpen(true) }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 transition hover:bg-slate-100"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7M7 7V5a5 5 0 0110 0v2" />
+                </svg>
+                Exportar a Power BI (Excel)
+              </button>
+              {canCreateMovements && (
               <button
                 type="button"
                 onClick={() => {
@@ -430,11 +495,13 @@ export default function Movimientos() {
                 </svg>
                 Registrar Movimiento
               </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
+      {canViewMovements ? (
       <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full border-collapse text-left">
           <thead>
@@ -494,19 +561,34 @@ export default function Movimientos() {
                       </svg>
                       Editar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAction('eliminar', item)}
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-rose-600"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18" />
-                        <path d="M8 6v14" />
-                        <path d="M16 6v14" />
-                        <path d="M5 6l1-3h12l1 3" />
-                      </svg>
-                      Eliminar
-                    </button>
+                    {canCreateMovements && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleAction('editar', item)}
+                          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAction('eliminar', item)}
+                          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-slate-500 transition hover:bg-slate-100 hover:text-rose-600"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" />
+                            <path d="M8 6v14" />
+                            <path d="M16 6v14" />
+                            <path d="M5 6l1-3h12l1 3" />
+                          </svg>
+                          Eliminar
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -561,6 +643,9 @@ export default function Movimientos() {
           </div>
         </div>
       </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 text-slate-600">No tienes permiso para ver movimientos.</div>
+      )}
 
       {isMovementModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
@@ -583,13 +668,36 @@ export default function Movimientos() {
 
             <form onSubmit={handleSaveMovement} className="p-6 space-y-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-center">
+                <label className="text-sm font-semibold text-slate-700" htmlFor="producto">Producto</label>
+                <div className="md:col-span-2">
+                  <select
+                    id="producto"
+                    name="producto"
+                    value={selectedProduct?.id || ''}
+                    onChange={(e) => handleProductSelection(e.target.value)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm focus:border-[#1a365d] focus:ring-[#1a365d]/30"
+                  >
+                    <option value="">Selecciona un producto</option>
+                    {availableProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} — {product.category || 'Sin categoría'}
+                      </option>
+                    ))}
+                  </select>
+                  {availableProducts.length === 0 && (
+                    <p className="mt-2 text-sm text-slate-500">No hay productos disponibles. Crea uno en la sección de Productos.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3 items-center">
                 <label className="text-sm font-semibold text-slate-700" htmlFor="cod_producto">Cod Producto</label>
                 <div className="md:col-span-2 relative">
                   <input
                     id="cod_producto"
                     name="cod_producto"
                     type="text"
-                    value={selectedProduct?.id || 'Recuperación Automática'}
+                    value={selectedProduct?.id ? selectedProduct.id : 'Selecciona un producto'}
                     readOnly
                     className="w-full rounded-md border border-slate-300 bg-slate-50 px-4 py-2 text-sm text-slate-700 shadow-sm focus:border-[#1a365d] focus:ring-[#1a365d]/30"
                   />
@@ -604,7 +712,7 @@ export default function Movimientos() {
                     id="nombre_producto"
                     name="nombre_producto"
                     type="text"
-                    value={selectedProduct?.name || 'Recuperación Automática'}
+                    value={selectedProduct?.name || 'Selecciona un producto para continuar'}
                     readOnly
                     className="w-full rounded-md border border-slate-300 bg-slate-50 px-4 py-2 text-sm text-slate-700 shadow-sm focus:border-[#1a365d] focus:ring-[#1a365d]/30"
                   />
@@ -758,6 +866,7 @@ export default function Movimientos() {
           <p className="mt-2 text-3xl font-semibold text-sky-700">99.8%</p>
         </div>
       </div>
+      <PasswordAuthModal isOpen={isAuthModalOpen} onClose={() => { setIsAuthModalOpen(false); setPendingAction(null) }} onConfirm={handleAuthConfirm} action={pendingAction === 'powerbi' ? 'exportar a Power BI' : 'exportar'} />
     </div>
   )
 }
