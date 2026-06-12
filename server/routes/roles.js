@@ -7,7 +7,7 @@ const router = express.Router()
 router.get('/', async (req, res) => {
   try {
     const pool = await poolPromise
-    const result = await pool.request().query('SELECT id, name, description FROM Roles')
+    const result = await pool.request().query('SELECT id, name, description, permissions FROM Roles')
     res.json(result.recordset)
   } catch (err) {
     console.error(err)
@@ -25,8 +25,11 @@ router.put('/', authenticate, async (req, res) => {
     const request = new tx.request()
     await request.query('DELETE FROM Roles')
     for (const r of roles) {
-      await request.input('name', r.name).input('description', r.description || null)
-        .query('INSERT INTO Roles (name, description) VALUES (@name, @description)')
+      await request
+        .input('name', r.name)
+        .input('description', r.description || null)
+        .input('permissions', r.permissions ? JSON.stringify(r.permissions) : null)
+        .query('INSERT INTO Roles (name, description, permissions) VALUES (@name, @description, @permissions)')
     }
     await tx.commit()
     res.json({ message: 'Roles saved' })

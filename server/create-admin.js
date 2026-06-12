@@ -18,11 +18,31 @@ async function createAdmin() {
     if (roleRes.recordset.length > 0) {
       roleId = roleRes.recordset[0].id
       console.log('Rol existente encontrado, id=', roleId)
+      const permissions = JSON.stringify([
+        'Ver Productos',
+        'Crear/Editar Productos',
+        'Ver Movimientos',
+        'Crear/Editar Movimientos',
+        'Administrar Usuarios',
+        'Ver Reportes',
+      ])
+      await pool.request()
+        .input('id', sql.Int, roleId)
+        .input('permissions', sql.NVarChar, permissions)
+        .query("UPDATE Roles SET permissions = @permissions WHERE id = @id AND (permissions IS NULL OR LTRIM(RTRIM(permissions)) = '')")
     } else {
       const insertRole = await pool.request()
         .input('name', sql.NVarChar, roleName)
         .input('description', sql.NVarChar, 'Rol administrador creado por create-admin script')
-        .query("INSERT INTO Roles (name, description) VALUES (@name, @description); SELECT SCOPE_IDENTITY() AS id;")
+        .input('permissions', sql.NVarChar, JSON.stringify([
+          'Ver Productos',
+          'Crear/Editar Productos',
+          'Ver Movimientos',
+          'Crear/Editar Movimientos',
+          'Administrar Usuarios',
+          'Ver Reportes',
+        ]))
+        .query("INSERT INTO Roles (name, description, permissions) VALUES (@name, @description, @permissions); SELECT SCOPE_IDENTITY() AS id;")
       roleId = insertRole.recordset[0].id
       console.log('Rol admin creado, id=', roleId)
     }

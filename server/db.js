@@ -12,45 +12,43 @@ const usingWindowsAuth = authType === 'windows'
 const config = {
   server,
   database: process.env.DB_DATABASE,
-  authentication: {
-    type: 'default',
-    options: {
-      userName: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-    }
-  },
   pool: {
     max: 10,
     min: 0,
     idleTimeoutMillis: 30000
   },
   options: {
-    encrypt: false,
-    trustServerCertificate: true,
+    encrypt: process.env.DB_ENCRYPT ? process.env.DB_ENCRYPT.toLowerCase() === 'true' : false,
+    trustServerCertificate: process.env.DB_TRUST_SERVER_CERT ? process.env.DB_TRUST_SERVER_CERT.toLowerCase() === 'true' : true,
     enableArithAbort: true,
-    connectTimeout: 30000,
-    port: 1433,
+    connectTimeout: process.env.DB_CONNECT_TIMEOUT ? parseInt(process.env.DB_CONNECT_TIMEOUT, 10) : 30000,
   }
-}
-
-if (!usingWindowsAuth) {
-  config.user = process.env.DB_USER
-  config.password = process.env.DB_PASSWORD
-}
-
-if (port && !dbInstance) {
-  config.port = port
 }
 
 if (usingWindowsAuth) {
   config.driver = process.env.DB_DRIVER || 'msnodesqlv8'
+} else {
+  config.authentication = {
+    type: 'default',
+    options: {
+      userName: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+    }
+  }
+  config.user = process.env.DB_USER
+  config.password = process.env.DB_PASSWORD
 }
 
-// Agregalo justo antes de crear el ConnectionPool
+if (dbInstance) {
+  config.options.instanceName = dbInstance
+} else if (port) {
+  config.port = port
+}
+
 console.log('DB Config:', JSON.stringify({
   server: config.server,
   database: config.database,
-  user: config.user,
+  user: usingWindowsAuth ? undefined : config.user,
   port: config.port,
   instanceName: config.options.instanceName,
   encrypt: config.options.encrypt,
