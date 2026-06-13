@@ -1,3 +1,5 @@
+import auth from './auth'
+
 const USERS_KEY = 'demo_users_v1'
 const ROLES_KEY = 'demo_roles_v1'
 
@@ -23,8 +25,8 @@ function useApi() {
 
 export async function getUsers() {
   if (useApi()) {
-    // future: fetch from API
-    const res = await fetch(import.meta.env.VITE_API_URL + '/users')
+    const res = await auth.apiFetch('/users')
+    if (!res.ok) throw new Error('Error al obtener usuarios')
     return res.json()
   }
   return JSON.parse(localStorage.getItem(USERS_KEY) || '[]')
@@ -32,8 +34,7 @@ export async function getUsers() {
 
 export async function saveUsers(users) {
   if (useApi()) {
-    // future: sync to API
-    return fetch(import.meta.env.VITE_API_URL + '/users', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) })
+    return auth.apiFetch('/users', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(users) })
   }
   localStorage.setItem(USERS_KEY, JSON.stringify(users))
 }
@@ -54,7 +55,8 @@ export async function updateUser(username, patch) {
 
 export async function getRoles() {
   if (useApi()) {
-    const res = await fetch(import.meta.env.VITE_API_URL + '/roles')
+    const res = await auth.apiFetch('/roles')
+    if (!res.ok) throw new Error('Error al obtener roles')
     return res.json()
   }
   const stored = JSON.parse(localStorage.getItem(ROLES_KEY) || 'null')
@@ -67,7 +69,7 @@ export async function getRoles() {
 
 export async function saveRoles(roles) {
   if (useApi()) {
-    return fetch(import.meta.env.VITE_API_URL + '/roles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(roles) })
+    return auth.apiFetch('/roles', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(roles) })
   }
   localStorage.setItem(ROLES_KEY, JSON.stringify(roles))
 }
